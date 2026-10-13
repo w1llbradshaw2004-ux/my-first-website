@@ -1,0 +1,81 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Admin Dashboard</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='styles.css') }}">
+</head>
+
+<body>
+    <main class="admin-container">
+
+        <h1>Admin Dashboard</h1>
+
+        <a href="{{ url_for('home') }}">Back to homepage</a>
+
+        <section class="admin-panel">
+            <h2>Create Account</h2>
+
+            {% if error %}
+                <p class="error">{{ error }}</p>
+            {% endif %}
+
+            {% if success %}
+                <p class="success">{{ success }}</p>
+            {% endif %}
+
+            <form action="{{ url_for('admin') }}" method="POST">
+                <input type="hidden"
+                       name="csrf_token"
+                       value="{{ csrf_token() }}">
+
+                <input type="text"
+                       name="username"
+                       placeholder="Username"
+                       minlength="3"
+                       maxlength="32"
+                       required>
+
+                <input type="password"
+                       name="password"
+                       placeholder="Password"
+                       minlength="12"
+                       maxlength="128"
+                       required>
+
+                <button type="submit">Create User</button>
+            </form>
+        </section>
+
+        <section class="admin-panel">
+            <h2>Existing Users ({{ users|length }})</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Role</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for user in users %}
+                        <tr>
+                            <td>{{ user[0] }}</td>
+                            <td>{{ user[1] }}</td>
+                            <td>{{ user[2] }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+    </main>
+</body>
+</html>

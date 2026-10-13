@@ -1,38 +1,163 @@
+
 <!DOCTYPE html>
-<html>
-    <head>
-        <title>My First Website</title>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-        <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    </head>
+    <title>Home | My Website</title>
 
-    <body>
-        <h1 id="welcome">Welcome, {{ username }}!</h1>
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='styles.css') }}">
+</head>
 
-        <p>This is my first website using Flask.</p>
+<body>
 
-        <h2>This website is a test</h2>
+    <!-- Navigation -->
+    <header class="navbar">
+        <a href="{{ url_for('home') }}" class="brand">
+            <span class="brand-icon">W</span>
+            <span>My Website</span>
+        </a>
 
-        <button id="button1" class="button1" onclick="button_clicked()">Click me</button>
+        <nav class="nav-actions">
+            <a href="{{ url_for('chat') }}" class="dashboard-button">
+                Chat
+            </a>
 
-        <script>
-            function button_clicked() {
-                let heading = document.getElementById("welcome");
-                let button = document.getElementById("button1");
+            {% if is_admin %}
+                <a href="{{ url_for('admin') }}"
+                   class="dashboard-button">
+                    Dashboard
+                </a>
+            {% endif %}
 
-                if (heading.textContent === "Welcome to my website!") {
-                    heading.textContent = "Button was clicked";
-                    button.style.backgroundColor = "#0000ff";
-                } else {
-                    heading.textContent = "Welcome to my website!";
-                    button.style.backgroundColor = "#ff0000";
-                }
+            <div class="user-profile">
+                <span class="profile-avatar">
+                    {{ username[0]|upper }}
+                </span>
+                <span class="profile-name">{{ username }}</span>
+            </div>
+
+            <form action="{{ url_for('logout') }}"
+                  method="POST"
+                  class="logout-form">
+
+                <input type="hidden"
+                       name="csrf_token"
+                       value="{{ csrf_token() }}">
+
+                <button type="submit" class="logout-button">
+                    Log out
+                </button>
+            </form>
+
+        </nav>
+    </header>
+
+
+    <!-- Main Page -->
+    <main class="main-container">
+
+        <!-- Welcome Section -->
+        <section class="welcome-section">
+
+            <div class="eyebrow">
+                PERSONAL WORKSPACE
+            </div>
+
+            <h1 id="welcome">
+                Welcome back, <span>{{ username }}</span>
+            </h1>
+
+            <p class="welcome-description">
+                Your personal space for projects, tools,
+                and everything you're working on.
+            </p>
+
+        </section>
+
+
+        <!-- Content Cards -->
+        <div class="dashboard-grid">
+
+            <section class="content-card">
+
+                <div class="card-icon">01</div>
+
+                <h2>Your Workspace</h2>
+
+                <p>
+                    This is your personal homepage.
+                    As the website grows, your projects
+                    and information will appear here.
+                </p>
+
+                <span class="card-footer">
+                    More features coming soon
+                </span>
+
+            </section>
+
+
+            <section class="content-card">
+
+                <div class="card-icon">02</div>
+
+                <h2>Interactive Test</h2>
+
+                <p>
+                    Test your JavaScript functionality
+                    with this interactive button.
+                </p>
+
+                <p id="test-status" class="test-status">
+                    Button is currently inactive
+                </p>
+
+                <button
+                    id="button1"
+                    class="primary-button"
+                    type="button"
+                    onclick="button_clicked()">
+                    Click me
+                </button>
+
+            </section>
+
+        </div>
+
+    </main>
+
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <span>My Website</span>
+        <span>Built with Python & Flask</span>
+    </footer>
+
+
+    <!-- JavaScript -->
+    <script>
+        let buttonActive = false;
+
+        function button_clicked() {
+            const button = document.getElementById("button1");
+            const status = document.getElementById("test-status");
+
+            buttonActive = !buttonActive;
+
+            if (buttonActive) {
+                button.textContent = "Reset button";
+                button.classList.add("active");
+                status.textContent = "Button was clicked!";
+            } else {
+                button.textContent = "Click me";
+                button.classList.remove("active");
+                status.textContent = "Button is currently inactive";
             }
-        </script>
-    </body>
-<form action="/logout" method="POST">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        }
+    </script>
 
-    <button type="submit">Logout</button>
-</form>
+</body>
 </html>

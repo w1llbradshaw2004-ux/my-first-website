@@ -1,0 +1,205 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <title>Community Chat</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='styles.css') }}">
+</head>
+
+<body>
+    <header class="navbar">
+        <a href="{{ url_for('home') }}" class="brand">
+            <span class="brand-icon">W</span>
+            <span>My Website</span>
+        </a>
+
+        <nav class="nav-actions">
+            <a href="{{ url_for('home') }}" class="dashboard-button">
+                Home
+            </a>
+
+            <span class="profile-name">{{ username }}</span>
+        </nav>
+    </header>
+
+    <main class="chat-container">
+        <div class="chat-header">
+            <div>
+                <h1>Community Chat</h1>
+                <p>Messages disappear after 24 hours</p>
+            </div>
+        </div>
+
+        <div id="chat-messages" class="chat-messages">
+            <p class="chat-placeholder">Loading messages...</p>
+        </div>
+
+        <form id="chat-form" class="chat-form">
+            <input
+                id="message-input"
+                type="text"
+                placeholder="Type a message..."
+                maxlength="1000"
+                autocomplete="off"
+                required
+            >
+
+            <button type="submit">Send</button>
+        </form>
+
+        <p id="chat-status" class="chat-status" role="status"></p>
+    </main>
+
+    <script>
+        const messagesContainer = document.getElementById("chat-messages");
+        const chatForm = document.getElementById("chat-form");
+        const messageInput = document.getElementById("message-input");
+        const statusText = document.getElementById("chat-status");
+
+        const csrfToken = document.querySelector(
+            'meta[name="csrf-token"]'
+        ).content;
+
+
+        let lastMessageSignature = "";
+
+
+        async function loadMessages() {
+            try {
+                const response = await fetch("/api/messages");
+
+                if (response.status === 401) {
+                    window.location.href = "/login";
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error("Could not retrieve messages.");
+                }
+
+                const messages = await response.json();
+
+                const messageSignature = JSON.stringify(
+                    messages.map(message => message.id)
+                );
+
+                if (messageSignature === lastMessageSignature) {
+                    return;
+                }
+
+lastMessageSignature = messageSignature;
+
+                const distanceFromBottom =
+                messagesContainer.scrollHeight
+                - messagesContainer.scrollTop
+                - messagesContainer.clientHeight;
+
+                    const shouldAutoScroll = distanceFromBottom < 80;
+
+                // Clear previous messages
+                messagesContainer.replaceChildren();
+
+                for (const message of messages) {
+                    const messageElement = document.createElement("div");
+                    messageElement.className = "chat-message";
+
+                    const author = document.createElement("div");
+                    author.className = "chat-author";
+
+                    const time = new Date(message.created_at);
+                    author.textContent =
+                        message.username + " · " +
+                        time.toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit"
+                        });
+
+                    const content = document.createElement("div");
+                    content.className = "chat-content";
+                    content.textContent = message.content;
+
+                    messageElement.appendChild(author);
+                    messageElement.appendChild(content);
+
+                    messagesContainer.appendChild(messageElement);
+                }
+
+                if (messages.length === 0) {
+                    const empty = document.createElement("p");
+                    empty.className = "chat-placeholder";
+                    empty.textContent = "No messages yet. Start the conversation!";
+                    messagesContainer.appendChild(empty);
+                }
+
+                // Scroll to the newest message
+                if (shouldAutoScroll) {
+                     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+
+                statusText.textContent = "";
+
+            } catch (error) {
+                statusText.textContent = error.message;
+            }
+        }
+
+        chatForm.addEventListener("submit", async function(event) {
+            event.preventDefault();
+
+            const content = messageInput.value.trim();
+
+            if (!content) {
+                return;
+            }
+
+            const sendButton = chatForm.querySelector("button");
+            sendButton.disabled = true;
+
+            try {
+                const response = await fetch("/api/messages", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": csrfToken
+                    },
+                    body: JSON.stringify({ content: content })
+                });
+
+                if (response.status === 401) {
+                    window.location.href = "/login";
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.error || "Could not send message."
+                    );
+                }
+
+                messageInput.value = "";
+                await loadMessages();
+
+            } catch (error) {
+                statusText.textContent = error.message;
+            } finally {
+                sendButton.disabled = false;
+                messageInput.focus();
+            }
+        });
+
+        // Load messages immediately
+        loadMessages();
+
+        // Check for new messages every 3 seconds
+        setInterval(loadMessages, 3000);
+    </script>
+</body>
+</html>
