@@ -7,7 +7,7 @@
     </head>
 
     <body>
-        <h1 id="welcome">Welcome to my website!</h1>
+        <h1 id="welcome">Welcome, {{ username }}!</h1>
 
         <p>This is my first website using Flask.</p>
 
@@ -30,4 +30,9 @@
             }
         </script>
     </body>
+<form action="/logout" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <button type="submit">Logout</button>
+</form>
 </html>

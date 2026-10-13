@@ -1,2 +1,6 @@
 Flask
 gunicorn
+psycopg[binary]
+python-dotenv
+Flask-WTF
+Flask-Limiter[redis]
