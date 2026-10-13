@@ -15,7 +15,8 @@ from database import (
     get_all_users,
     create_managed_user,
     send_message,
-    get_messages
+    get_messages,
+    delete_message
 )
 
 
@@ -182,8 +183,9 @@ def chat():
         return redirect(url_for("login"))
 
     return render_template(
-        "chat.html",
-        username=user[1]
+    "chat.html",
+    username=user[1],
+    is_admin=user[3] == "admin"
     )
 
 
@@ -254,6 +256,40 @@ def api_send_message():
         "success": True,
         "message_id": message_id
     }), 201
+
+
+
+@app.route("/api/messages/<int:message_id>/delete", methods=["POST"])
+@limiter.limit("20 per minute")
+def api_delete_message(message_id):
+    """Allow administrators to delete chat messages."""
+
+    user_id = session.get("user_id")
+
+    if user_id is None:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    # Retrieve the current user from PostgreSQL
+    user = get_postgres_user_by_id(user_id)
+
+    if not user:
+        session.clear()
+        return jsonify({"error": "Unauthorized"}), 401
+
+    # Only administrators may delete messages
+    if user[3] != "admin":
+        return jsonify({"error": "Access denied"}), 403
+
+    deleted = delete_message(message_id)
+
+    if not deleted:
+        return jsonify({"error": "Message not found"}), 404
+
+    return jsonify({
+        "success": True,
+        "message": "Message deleted successfully"
+    })
+
 
 
 if __name__ == "__main__":

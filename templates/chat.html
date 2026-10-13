@@ -6,13 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>Community Chat</title>
+    <title>Community Chat | My Website</title>
 
     <link rel="stylesheet"
           href="{{ url_for('static', filename='styles.css') }}">
 </head>
 
 <body>
+
+    <!-- Navigation -->
     <header class="navbar">
         <a href="{{ url_for('home') }}" class="brand">
             <span class="brand-icon">W</span>
@@ -28,11 +30,14 @@
         </nav>
     </header>
 
+
+    <!-- Chat -->
     <main class="chat-container">
+
         <div class="chat-header">
             <div>
                 <h1>Community Chat</h1>
-                <p>Messages disappear after 24 hours</p>
+                <p>Messages automatically expire after 24 hours.</p>
             </div>
         </div>
 
@@ -54,25 +59,46 @@
         </form>
 
         <p id="chat-status" class="chat-status" role="status"></p>
+
     </main>
 
+
+    <!-- JavaScript -->
     <script>
         const messagesContainer = document.getElementById("chat-messages");
         const chatForm = document.getElementById("chat-form");
         const messageInput = document.getElementById("message-input");
         const statusText = document.getElementById("chat-status");
+        const sendButton = chatForm.querySelector("button");
 
         const csrfToken = document.querySelector(
             'meta[name="csrf-token"]'
         ).content;
 
+        // Flask inserts this value when rendering the page.
+        const isAdmin = JSON.parse('{{ is_admin | tojson }}');
 
-        let lastMessageSignature = "";
+        let lastMessageSignature = null;
+        let isLoading = false;
 
 
-        async function loadMessages() {
+        // =========================
+        // LOAD MESSAGES
+        // =========================
+
+        async function loadMessages(forceRefresh = false) {
+
+            // Prevent overlapping requests.
+            if (isLoading) {
+                return;
+            }
+
+            isLoading = true;
+
             try {
-                const response = await fetch("/api/messages");
+                const response = await fetch("/api/messages", {
+                    cache: "no-store"
+                });
 
                 if (response.status === 401) {
                     window.location.href = "/login";
@@ -89,30 +115,44 @@
                     messages.map(message => message.id)
                 );
 
-                if (messageSignature === lastMessageSignature) {
+                // Avoid rebuilding unchanged messages.
+                if (
+                    !forceRefresh &&
+                    messageSignature === lastMessageSignature
+                ) {
+                    statusText.textContent = "";
                     return;
                 }
 
-lastMessageSignature = messageSignature;
+                // Remember current scroll position.
+                const oldScrollHeight = messagesContainer.scrollHeight;
+                const oldScrollTop = messagesContainer.scrollTop;
 
                 const distanceFromBottom =
-                messagesContainer.scrollHeight
-                - messagesContainer.scrollTop
-                - messagesContainer.clientHeight;
+                    oldScrollHeight
+                    - oldScrollTop
+                    - messagesContainer.clientHeight;
 
-                    const shouldAutoScroll = distanceFromBottom < 80;
+                const shouldAutoScroll =
+                    lastMessageSignature === null ||
+                    distanceFromBottom < 80;
 
-                // Clear previous messages
+                // Clear old elements.
                 messagesContainer.replaceChildren();
 
+
+                // Build message elements.
                 for (const message of messages) {
+
                     const messageElement = document.createElement("div");
                     messageElement.className = "chat-message";
 
+                    // Username and timestamp
                     const author = document.createElement("div");
                     author.className = "chat-author";
 
                     const time = new Date(message.created_at);
+
                     author.textContent =
                         message.username + " · " +
                         time.toLocaleTimeString([], {
@@ -120,37 +160,82 @@ lastMessageSignature = messageSignature;
                             minute: "2-digit"
                         });
 
+
+                    // Message content
                     const content = document.createElement("div");
                     content.className = "chat-content";
+
+                    // Display as text, not executable HTML.
                     content.textContent = message.content;
 
                     messageElement.appendChild(author);
                     messageElement.appendChild(content);
 
+
+                    // Admin-only deletion controls
+                    if (isAdmin) {
+
+                        const deleteButton = document.createElement("button");
+
+                        deleteButton.className = "delete-message-button";
+                        deleteButton.textContent = "Delete";
+                        deleteButton.type = "button";
+
+                        deleteButton.addEventListener("click", () => {
+                            deleteMessage(message.id);
+                        });
+
+                        messageElement.appendChild(deleteButton);
+                    }
+
                     messagesContainer.appendChild(messageElement);
                 }
 
+
+                // Empty chat message
                 if (messages.length === 0) {
+
                     const empty = document.createElement("p");
                     empty.className = "chat-placeholder";
-                    empty.textContent = "No messages yet. Start the conversation!";
+
+                    empty.textContent =
+                        "No messages yet. Start the conversation!";
+
                     messagesContainer.appendChild(empty);
                 }
 
-                // Scroll to the newest message
+
+                // Restore scrolling behavior.
                 if (shouldAutoScroll) {
-                     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    messagesContainer.scrollTop =
+                        messagesContainer.scrollHeight;
+                } else {
+                    messagesContainer.scrollTop = oldScrollTop;
                 }
 
+                lastMessageSignature = messageSignature;
                 statusText.textContent = "";
 
             } catch (error) {
                 statusText.textContent = error.message;
+
+            } finally {
+                isLoading = false;
             }
         }
 
-        chatForm.addEventListener("submit", async function(event) {
+
+        // =========================
+        // SEND MESSAGE
+        // =========================
+
+        chatForm.addEventListener("submit", async (event) => {
+
             event.preventDefault();
+
+            if (sendButton.disabled) {
+                return;
+            }
 
             const content = messageInput.value.trim();
 
@@ -158,17 +243,20 @@ lastMessageSignature = messageSignature;
                 return;
             }
 
-            const sendButton = chatForm.querySelector("button");
             sendButton.disabled = true;
 
             try {
                 const response = await fetch("/api/messages", {
                     method: "POST",
+
                     headers: {
                         "Content-Type": "application/json",
                         "X-CSRFToken": csrfToken
                     },
-                    body: JSON.stringify({ content: content })
+
+                    body: JSON.stringify({
+                        content: content
+                    })
                 });
 
                 if (response.status === 401) {
@@ -185,21 +273,87 @@ lastMessageSignature = messageSignature;
                 }
 
                 messageInput.value = "";
-                await loadMessages();
+
+                // Refresh immediately after sending.
+                await loadMessages(true);
 
             } catch (error) {
                 statusText.textContent = error.message;
+
             } finally {
                 sendButton.disabled = false;
                 messageInput.focus();
             }
         });
 
-        // Load messages immediately
+
+        // =========================
+        // DELETE MESSAGE (ADMIN)
+        // =========================
+
+        async function deleteMessage(messageId) {
+
+            if (!isAdmin) {
+                return;
+            }
+
+            const confirmed = confirm(
+                "Are you sure you want to permanently delete this message?"
+            );
+
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+                const response = await fetch(
+                    `/api/messages/${messageId}/delete`,
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "X-CSRFToken": csrfToken
+                        }
+                    }
+                );
+
+                if (response.status === 401) {
+                    window.location.href = "/login";
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.error || "Failed to delete message."
+                    );
+                }
+
+                // Reload immediately to remove deleted message.
+                await loadMessages(true);
+
+            } catch (error) {
+                statusText.textContent = error.message;
+            }
+        }
+
+
+        // =========================
+        // AUTOMATIC UPDATES
+        // =========================
+
+        // Load existing messages.
         loadMessages();
 
-        // Check for new messages every 3 seconds
-        setInterval(loadMessages, 3000);
+        // Check for updates every 3 seconds.
+        setInterval(() => {
+            if (!document.hidden) {
+                loadMessages();
+            }
+        }, 3000);
+
     </script>
+
 </body>
 </html>

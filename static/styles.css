@@ -714,3 +714,29 @@ button {
 .chat-status:empty {
     display: none;
 }
+
+
+/* Admin message deletion */
+
+.delete-message-button {
+    display: inline-block;
+
+    background: transparent;
+    color: #f87171;
+
+    border: 1px solid #7f3030;
+    border-radius: 6px;
+
+    padding: 6px 10px;
+    margin-left: 12px;
+
+    font-size: 12px;
+    cursor: pointer;
+
+    transition: 0.2s ease;
+}
+
+.delete-message-button:hover {
+    background: #7f3030;
+    color: white;
+}

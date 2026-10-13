@@ -145,3 +145,20 @@ def get_messages():
             messages = cursor.fetchall()
 
     return list(reversed(messages))
+
+
+
+def delete_message(message_id):
+    """Permanently delete a message by its ID."""
+
+    with get_postgres_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                DELETE FROM public.messages
+                WHERE id = %s
+                RETURNING id
+            """, (message_id,))
+
+            deleted = cursor.fetchone()
+
+    return deleted is not None
