@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>My First Website</title>
+
+        <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    </head>
+
+    <body>
+        <h1 id="welcome">Welcome to my website!</h1>
+
+        <p>This is my first website using Flask.</p>
+
+        <h2>This website is a test</h2>
+
+        <button id="button1" class="button1" onclick="button_clicked()">Click me</button>
+
+        <script>
+            function button_clicked() {
+                let heading = document.getElementById("welcome");
+                let button = document.getElementById("button1");
+
+                if (heading.textContent === "Welcome to my website!") {
+                    heading.textContent = "Button was clicked";
+                    button.style.backgroundColor = "#0000ff";
+                } else {
+                    heading.textContent = "Welcome to my website!";
+                    button.style.backgroundColor = "#ff0000";
+                }
+            }
+        </script>
+    </body>
+</html>
